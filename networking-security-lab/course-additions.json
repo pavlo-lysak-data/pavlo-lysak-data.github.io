@@ -1,0 +1,888 @@
+{
+  "modules": [
+    {
+      "id": "segmentation",
+      "title": "9. VLANs, Segmentation & Virtual Networks",
+      "badge": "Segmentation",
+      "estimated": "50 min",
+      "theory": [
+        {
+          "heading": "Broadcast domains and segmentation",
+          "text": "Segmentation divides one network into smaller failure and trust domains. A VLAN creates a logical Layer-2 broadcast domain; traffic between VLANs requires Layer-3 routing and can be governed by policy."
+        },
+        {
+          "heading": "802.1Q tagging",
+          "text": "IEEE 802.1Q inserts a VLAN identifier into an Ethernet frame. Access ports normally carry one VLAN untagged, while trunk links can carry multiple tagged VLANs between switches, hypervisors, or routers."
+        },
+        {
+          "heading": "Linux bridges and VLAN filtering",
+          "text": "A Linux bridge is a software switch. VLAN filtering lets one bridge enforce per-port VLAN membership, including tagged, untagged, and PVID behavior, rather than requiring a separate bridge for every VLAN."
+        },
+        {
+          "heading": "Virtual network isolation",
+          "text": "Network namespaces provide independent interfaces, routes, sockets, and firewall state. VRFs separate routing tables. Cloud VPCs and container networks build higher-level isolation from similar primitives."
+        },
+        {
+          "heading": "Microsegmentation",
+          "text": "Microsegmentation applies fine-grained controls around workloads or application tiers. It reduces lateral movement, but its policy must follow verified identities, dependencies, telemetry, and tested recovery paths."
+        }
+      ],
+      "quiz": [
+        {
+          "prompt": "What does a VLAN primarily create?",
+          "options": [
+            "A separate logical Layer-2 broadcast domain",
+            "A new TLS certificate authority",
+            "A TCP congestion-control algorithm",
+            "A DNS root server"
+          ],
+          "answer": 0,
+          "explanation": "A VLAN separates Ethernet broadcast domains even when endpoints share physical switching infrastructure."
+        },
+        {
+          "prompt": "What is the normal purpose of an 802.1Q trunk?",
+          "options": [
+            "Carry multiple VLANs across one link",
+            "Convert TCP into UDP",
+            "Assign hostnames to IP addresses",
+            "Terminate every TLS session"
+          ],
+          "answer": 0,
+          "explanation": "A trunk transports frames for multiple VLANs, normally distinguishing them with 802.1Q tags."
+        },
+        {
+          "prompt": "What must happen for ordinary hosts in different VLANs to communicate?",
+          "options": [
+            "Layer-3 routing between the VLANs",
+            "ARP alone",
+            "A larger Ethernet MTU only",
+            "Both hosts must use the same MAC address"
+          ],
+          "answer": 0,
+          "explanation": "Different VLANs are separate Layer-2 networks, so an L3 device or routing function must forward between them."
+        },
+        {
+          "prompt": "What does PVID mean on a VLAN-aware bridge port?",
+          "options": [
+            "The VLAN assigned to incoming untagged frames",
+            "The public VPN identity",
+            "The primary virtual IP DNS record",
+            "The packet verification integrity digest"
+          ],
+          "answer": 0,
+          "explanation": "The Port VLAN ID classifies untagged ingress traffic into a VLAN."
+        },
+        {
+          "prompt": "Why enable VLAN filtering on a Linux bridge?",
+          "options": [
+            "To enforce VLAN membership and tagging per bridge port",
+            "To encrypt every Ethernet frame",
+            "To replace IP routing",
+            "To make DNS authoritative"
+          ],
+          "answer": 0,
+          "explanation": "VLAN filtering turns the bridge into a VLAN-aware switch with explicit membership and egress tagging behavior."
+        },
+        {
+          "prompt": "Which Linux primitive provides an independent network stack with its own routes and interfaces?",
+          "options": [
+            "Network namespace",
+            "Symbolic link",
+            "Filesystem inode",
+            "System clock namespace only"
+          ],
+          "answer": 0,
+          "explanation": "A network namespace isolates network devices, routing, sockets, firewall state, and related kernel networking objects."
+        },
+        {
+          "prompt": "What problem does a VRF primarily solve?",
+          "options": [
+            "Maintain separate routing domains on one system",
+            "Issue public certificates",
+            "Compress HTTP responses",
+            "Replace Ethernet switching"
+          ],
+          "answer": 0,
+          "explanation": "A VRF associates interfaces with separate routing tables, allowing overlapping or isolated routing domains."
+        },
+        {
+          "prompt": "Which statement best describes microsegmentation?",
+          "options": [
+            "Fine-grained policy around workloads or small application groups",
+            "One flat trusted internal network",
+            "Disabling all east-west visibility",
+            "Using only a perimeter firewall"
+          ],
+          "answer": 0,
+          "explanation": "Microsegmentation reduces broad trust by enforcing narrowly scoped workload-level communication policy."
+        },
+        {
+          "prompt": "Why is segmentation not sufficient by itself?",
+          "options": [
+            "Identity, endpoint, application, monitoring, and recovery controls are still required",
+            "VLANs automatically patch servers",
+            "Segments cannot carry IP traffic",
+            "Segmentation prevents all credential theft"
+          ],
+          "answer": 0,
+          "explanation": "Segmentation limits paths; it does not replace authentication, secure configuration, patching, detection, or application authorization."
+        },
+        {
+          "prompt": "What is the safest first step before enforcing a new east-west deny policy?",
+          "options": [
+            "Map actual dependencies and define rollback access",
+            "Block every flow without observation",
+            "Delete routing tables",
+            "Disable centralized logging"
+          ],
+          "answer": 0,
+          "explanation": "Dependency evidence and a recovery plan reduce the chance that segmentation breaks legitimate service communication."
+        }
+      ],
+      "lab": {
+        "title": "Lab 9 — Build a VLAN-aware Linux bridge",
+        "scenario": "Create a disposable software switch, enable VLAN filtering, attach a virtual port, place it in VLAN 10, and inspect the effective membership.",
+        "environment": [
+          "Ubuntu/WSL with sudo",
+          "iproute2 and bridge tools",
+          "Built-in simulator or disposable host"
+        ],
+        "safety": "Use only the lab bridge names shown here. Do not attach a production uplink while experimenting.",
+        "tasks": [
+          {
+            "title": "Create the bridge",
+            "goal": "Create br-lab as a Linux bridge.",
+            "match": "^sudo\\s+ip\\s+link\\s+add\\s+br-lab\\s+type\\s+bridge$",
+            "output": "Bridge br-lab created.",
+            "hint": "Use: sudo ip link add br-lab type bridge"
+          },
+          {
+            "title": "Enable VLAN filtering",
+            "goal": "Make the bridge VLAN-aware.",
+            "match": "^sudo\\s+ip\\s+link\\s+set\\s+dev\\s+br-lab\\s+type\\s+bridge\\s+vlan_filtering\\s+1$",
+            "output": "br-lab: vlan_filtering 1",
+            "hint": "Use the bridge vlan_filtering attribute."
+          },
+          {
+            "title": "Create a virtual cable",
+            "goal": "Create host10 and sw10 as a veth pair.",
+            "match": "^sudo\\s+ip\\s+link\\s+add\\s+host10\\s+type\\s+veth\\s+peer\\s+name\\s+sw10$",
+            "output": "host10 <--> sw10 created.",
+            "hint": "Use: sudo ip link add host10 type veth peer name sw10"
+          },
+          {
+            "title": "Attach the switch port",
+            "goal": "Attach sw10 to br-lab.",
+            "match": "^sudo\\s+ip\\s+link\\s+set\\s+sw10\\s+master\\s+br-lab$",
+            "output": "sw10 enslaved to bridge br-lab.",
+            "hint": "Use: sudo ip link set sw10 master br-lab"
+          },
+          {
+            "title": "Assign access VLAN",
+            "goal": "Make VLAN 10 the untagged PVID on sw10.",
+            "match": "^sudo\\s+bridge\\s+vlan\\s+add\\s+dev\\s+sw10\\s+vid\\s+10\\s+pvid\\s+untagged$",
+            "output": "sw10 vlan 10 PVID Egress Untagged",
+            "hint": "Use bridge vlan add with vid 10, pvid, and untagged."
+          },
+          {
+            "title": "Inspect effective membership",
+            "goal": "List the VLAN table.",
+            "match": "^sudo\\s+bridge\\s+vlan\\s+show$",
+            "output": "port              vlan-id\nbr-lab            1 PVID Egress Untagged\nsw10              10 PVID Egress Untagged",
+            "hint": "Use: sudo bridge vlan show"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "label": "Red Hat — Configuring VLAN tagging",
+          "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/configuring_and_managing_networking/configuring-vlan-tagging"
+        },
+        {
+          "label": "CISA — Microsegmentation in Zero Trust",
+          "url": "https://www.cisa.gov/resources-tools/resources/microsegmentation-zero-trust-part-one-introduction-and-planning"
+        },
+        {
+          "label": "Linux bridge manual",
+          "url": "https://man7.org/linux/man-pages/man8/bridge.8.html"
+        }
+      ]
+    },
+    {
+      "id": "delivery",
+      "title": "10. Proxies, Load Balancing, VPNs & Zero Trust",
+      "badge": "Traffic delivery",
+      "estimated": "50 min",
+      "theory": [
+        {
+          "heading": "Forward and reverse proxies",
+          "text": "A forward proxy represents clients when reaching external services. A reverse proxy represents origin servers to clients and can centralize TLS, routing, caching, authentication, rate limits, and observability."
+        },
+        {
+          "heading": "Layer 4 and Layer 7 balancing",
+          "text": "Layer-4 load balancing distributes transport connections using addresses and ports. Layer-7 balancing understands application details such as HTTP hostnames, paths, headers, and response codes."
+        },
+        {
+          "heading": "Health checks and failure handling",
+          "text": "A load balancer should send traffic only to ready endpoints. Health checks need representative paths, bounded timeouts, thresholds, and separation between liveness and readiness."
+        },
+        {
+          "heading": "VPNs and tunnels",
+          "text": "A VPN creates a protected path between peers or networks. Routing decides which traffic enters the tunnel. Encryption in transit does not grant application authorization or make either endpoint trustworthy."
+        },
+        {
+          "heading": "Zero trust",
+          "text": "Zero trust removes implicit trust based only on network location. Access decisions evaluate the subject, device, resource, policy, and current context, and they should be continuously reassessed."
+        }
+      ],
+      "quiz": [
+        {
+          "prompt": "Whom does a forward proxy primarily represent?",
+          "options": [
+            "Clients making outbound requests",
+            "Certificate authorities",
+            "Ethernet switches",
+            "Authoritative DNS root servers"
+          ],
+          "answer": 0,
+          "explanation": "A forward proxy acts on behalf of clients, while a reverse proxy fronts servers."
+        },
+        {
+          "prompt": "What is a common reverse-proxy responsibility?",
+          "options": [
+            "Route incoming requests to origin services",
+            "Assign MAC addresses to NICs",
+            "Replace every application database",
+            "Create DNSSEC root keys automatically"
+          ],
+          "answer": 0,
+          "explanation": "Reverse proxies commonly terminate connections and route requests to one or more backend services."
+        },
+        {
+          "prompt": "Which information can a Layer-7 HTTP load balancer use that a basic Layer-4 balancer normally cannot?",
+          "options": [
+            "URL path and Host header",
+            "Destination TCP port",
+            "Source IP address",
+            "Transport connection state"
+          ],
+          "answer": 0,
+          "explanation": "Layer-7 devices understand HTTP semantics such as hostnames, paths, methods, and headers."
+        },
+        {
+          "prompt": "What should happen when an endpoint fails its readiness checks?",
+          "options": [
+            "Stop sending new workload traffic to it",
+            "Delete every healthy endpoint",
+            "Disable all observability",
+            "Publish its private key"
+          ],
+          "answer": 0,
+          "explanation": "Readiness indicates whether an endpoint should receive workload traffic."
+        },
+        {
+          "prompt": "Why should liveness and readiness checks be distinguished?",
+          "options": [
+            "A process may be alive but temporarily unable to serve traffic",
+            "They use different Ethernet frame formats",
+            "Readiness replaces authentication",
+            "Liveness is a DNS record type"
+          ],
+          "answer": 0,
+          "explanation": "Restarting a live but temporarily unready process can worsen an incident, while routing traffic to it can fail requests."
+        },
+        {
+          "prompt": "What determines which packets enter a typical VPN interface?",
+          "options": [
+            "Routing and peer configuration",
+            "Only the browser lock icon",
+            "The Ethernet vendor prefix",
+            "The DNS TTL alone"
+          ],
+          "answer": 0,
+          "explanation": "VPN software provides a tunnel, while routes and peer selectors determine the protected traffic."
+        },
+        {
+          "prompt": "What does a VPN not provide automatically?",
+          "options": [
+            "Application-level authorization",
+            "Encryption in transit",
+            "A protected network path",
+            "Peer-to-peer tunneling"
+          ],
+          "answer": 0,
+          "explanation": "A tunnel protects transit; applications still need identity, authorization, patching, and logging."
+        },
+        {
+          "prompt": "Which statement matches NIST zero-trust principles?",
+          "options": [
+            "Network location alone must not grant implicit trust",
+            "Everything on the LAN is permanently trusted",
+            "VPN membership replaces all access checks",
+            "Zero trust means blocking all network communication"
+          ],
+          "answer": 0,
+          "explanation": "Zero trust evaluates access to resources without treating internal location as sufficient proof."
+        },
+        {
+          "prompt": "What is a safe reverse-proxy header practice?",
+          "options": [
+            "Trust forwarded client headers only from known proxy hops",
+            "Accept X-Forwarded-For from every Internet client",
+            "Log authorization tokens in full",
+            "Disable request-size limits"
+          ],
+          "answer": 0,
+          "explanation": "Applications should trust forwarding metadata only when it is inserted or sanitized by known intermediaries."
+        },
+        {
+          "prompt": "Which design best improves load-balancer resilience?",
+          "options": [
+            "Multiple healthy endpoints plus tested failure detection",
+            "One endpoint and no health checks",
+            "Infinite timeouts",
+            "A public origin with unrestricted management ports"
+          ],
+          "answer": 0,
+          "explanation": "Redundancy is useful only when the system can identify failures and stop routing requests to unhealthy capacity."
+        }
+      ],
+      "lab": {
+        "title": "Lab 10 — Trace a reverse-proxied service and VPN route",
+        "scenario": "Validate an origin on port 9000, inspect the nginx proxy on 8080, confirm forwarded behavior, then verify that the management subnet uses wg0.",
+        "environment": [
+          "Simulated Ubuntu gateway",
+          "nginx reverse proxy",
+          "WireGuard interface wg0"
+        ],
+        "safety": "Read-only verification except for a simulated nginx reload. Use a disposable configuration in a real lab.",
+        "tasks": [
+          {
+            "title": "Check origin health",
+            "goal": "Verify the backend directly.",
+            "match": "^curl\\s+-I\\s+http://127\\.0\\.0\\.1:9000/health$",
+            "output": "HTTP/1.1 200 OK\nserver: app-origin\nx-ready: true",
+            "hint": "Use: curl -I http://127.0.0.1:9000/health"
+          },
+          {
+            "title": "Inspect proxy target",
+            "goal": "Find proxy_pass in the nginx configuration.",
+            "match": "^grep\\s+-R\\s+['\"]?proxy_pass['\"]?\\s+/etc/nginx/conf\\.d/?$",
+            "output": "/etc/nginx/conf.d/app.conf: proxy_pass http://127.0.0.1:9000;",
+            "hint": "Use grep -R proxy_pass /etc/nginx/conf.d/"
+          },
+          {
+            "title": "Validate configuration",
+            "goal": "Run nginx syntax validation.",
+            "match": "^sudo\\s+nginx\\s+-t$",
+            "output": "nginx: configuration file /etc/nginx/nginx.conf syntax is ok\nnginx: configuration file /etc/nginx/nginx.conf test is successful",
+            "hint": "Use: sudo nginx -t"
+          },
+          {
+            "title": "Test the proxy",
+            "goal": "Request health through port 8080.",
+            "match": "^curl\\s+-i\\s+http://127\\.0\\.0\\.1:8080/health$",
+            "output": "HTTP/1.1 200 OK\nserver: nginx\nx-upstream: app-origin\n\n{\"status\":\"ready\"}",
+            "hint": "Use: curl -i http://127.0.0.1:8080/health"
+          },
+          {
+            "title": "Inspect tunnel route",
+            "goal": "Confirm the route to 10.90.0.10.",
+            "match": "^ip\\s+route\\s+get\\s+10\\.90\\.0\\.10$",
+            "output": "10.90.0.10 dev wg0 src 10.90.0.2 uid 1000",
+            "hint": "Use: ip route get 10.90.0.10"
+          },
+          {
+            "title": "Inspect WireGuard",
+            "goal": "Review peer and handshake state.",
+            "match": "^sudo\\s+wg\\s+show$",
+            "output": "interface: wg0\n  public key: learner-public-key\npeer: gateway-public-key\n  endpoint: 203.0.113.10:51820\n  latest handshake: 42 seconds ago\n  allowed ips: 10.90.0.0/24",
+            "hint": "Use: sudo wg show"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "label": "Cloudflare — What is a reverse proxy?",
+          "url": "https://www.cloudflare.com/learning/cdn/glossary/reverse-proxy/"
+        },
+        {
+          "label": "WireGuard — Quick Start",
+          "url": "https://www.wireguard.com/quickstart/"
+        },
+        {
+          "label": "NIST SP 800-207 — Zero Trust Architecture",
+          "url": "https://csrc.nist.gov/pubs/sp/800/207/final"
+        }
+      ]
+    },
+    {
+      "id": "detection",
+      "title": "11. Network Threats, IDS/IPS & Observability",
+      "badge": "Detect & respond",
+      "estimated": "55 min",
+      "theory": [
+        {
+          "heading": "Threat patterns",
+          "text": "Network threats include reconnaissance, spoofing, credential interception, malicious command-and-control, denial of service, and lateral movement. A single symptom rarely proves malicious intent."
+        },
+        {
+          "heading": "Useful network evidence",
+          "text": "Full packet capture preserves content, flow data summarizes conversations, transaction logs describe protocols, and alerts express detector judgments. Each has different cost, privacy, and retention trade-offs."
+        },
+        {
+          "heading": "IDS versus IPS",
+          "text": "An IDS observes and alerts. An IPS sits inline and can drop or reject matching traffic. Prevention adds failure risk, so signatures, exception policy, capacity, and rollback need deliberate testing."
+        },
+        {
+          "heading": "Zeek and Suricata",
+          "text": "Zeek excels at protocol-aware transaction logs and network analysis. Suricata provides high-performance IDS, IPS, and network-security monitoring with signatures and structured EVE JSON events."
+        },
+        {
+          "heading": "Encrypted traffic and privacy",
+          "text": "TLS hides application content but metadata can still support operations and detection. Collection must follow authorization, minimization, access controls, time synchronization, integrity, and retention policy."
+        }
+      ],
+      "quiz": [
+        {
+          "prompt": "Which data source preserves the most packet-level detail?",
+          "options": [
+            "Full packet capture",
+            "A monthly availability percentage",
+            "A DNS zone serial only",
+            "A service inventory without timestamps"
+          ],
+          "answer": 0,
+          "explanation": "Full packet capture preserves packet headers and, when unencrypted and captured, payload content."
+        },
+        {
+          "prompt": "What is the main difference between an IDS and an IPS?",
+          "options": [
+            "An IPS can operate inline and block matching traffic",
+            "An IDS assigns IP addresses",
+            "An IPS is always a DNS server",
+            "An IDS replaces all firewalls"
+          ],
+          "answer": 0,
+          "explanation": "IDS is primarily observational, while IPS prevention mode can enforce a drop or reject decision inline."
+        },
+        {
+          "prompt": "What does Zeek commonly produce?",
+          "options": [
+            "Protocol-aware transaction logs",
+            "TLS private keys",
+            "Ethernet hardware",
+            "DHCP leases for every enterprise automatically"
+          ],
+          "answer": 0,
+          "explanation": "Zeek summarizes observed protocols, connections, files, certificates, and other network activity into structured logs."
+        },
+        {
+          "prompt": "What is Suricata EVE JSON used for?",
+          "options": [
+            "Structured network events and alerts",
+            "Linux package installation",
+            "Authoritative DNS zone signing only",
+            "Creating VLAN tags in Ethernet hardware"
+          ],
+          "answer": 0,
+          "explanation": "EVE JSON is Suricata's structured event output for alerts, flows, DNS, TLS, HTTP, and more."
+        },
+        {
+          "prompt": "Why can a single port scan alert be insufficient for attribution?",
+          "options": [
+            "Address translation, shared systems, spoofing, and benign scanners require context",
+            "Port scans never occur",
+            "Alerts contain private keys",
+            "TCP has no source address"
+          ],
+          "answer": 0,
+          "explanation": "An alert is a lead, not proof of identity or intent; correlate it with asset, identity, flow, and endpoint evidence."
+        },
+        {
+          "prompt": "What is a false positive?",
+          "options": [
+            "Benign activity incorrectly classified as malicious",
+            "Malicious activity that is correctly blocked",
+            "A verified software patch",
+            "A healthy load-balancer endpoint"
+          ],
+          "answer": 0,
+          "explanation": "False positives consume analyst time and can make operators distrust noisy controls."
+        },
+        {
+          "prompt": "Why is time synchronization important during an incident?",
+          "options": [
+            "It allows events from different systems to be correlated accurately",
+            "It increases Ethernet MTU",
+            "It replaces DNSSEC",
+            "It disables encryption"
+          ],
+          "answer": 0,
+          "explanation": "Consistent timestamps are essential for reconstructing sequence and correlating network, host, identity, and application evidence."
+        },
+        {
+          "prompt": "What can still be observed when TLS encrypts application content?",
+          "options": [
+            "Flow timing, endpoints, sizes, and selected handshake metadata",
+            "Every application secret in plaintext",
+            "The server private key",
+            "Nothing at all"
+          ],
+          "answer": 0,
+          "explanation": "Encryption protects content, but transport and handshake metadata may remain available depending on the protocol and vantage point."
+        },
+        {
+          "prompt": "What should happen before moving a new signature from alert to drop?",
+          "options": [
+            "Test accuracy, exceptions, performance, and rollback",
+            "Delete all logs",
+            "Ignore business traffic",
+            "Disable the management plane"
+          ],
+          "answer": 0,
+          "explanation": "Inline enforcement can cause outages; validate its behavior with representative traffic and a recovery path."
+        },
+        {
+          "prompt": "What is the safest packet-capture practice?",
+          "options": [
+            "Capture only authorized scope and protect retained data",
+            "Capture all traffic forever without access control",
+            "Publish payloads publicly",
+            "Disable timestamps"
+          ],
+          "answer": 0,
+          "explanation": "Packet data can contain credentials and personal information, so collection and retention require explicit authority and protection."
+        }
+      ],
+      "lab": {
+        "title": "Lab 11 — Investigate suspicious network activity",
+        "scenario": "Analyze a simulated incident capture plus Zeek and Suricata outputs. Identify a scanning source, correlate the alert, and preserve the capture hash.",
+        "environment": [
+          "Read-only incident files",
+          "tcpdump, Zeek, jq, sha256sum",
+          "Fully simulated command output"
+        ],
+        "safety": "Passive analysis only. Do not scan or capture networks without explicit authorization.",
+        "tasks": [
+          {
+            "title": "Summarize conversations",
+            "goal": "Read the capture without name resolution.",
+            "match": "^sudo\\s+tcpdump\\s+-nn\\s+-r\\s+/var/log/netlab/incident\\.pcap$",
+            "output": "198.51.100.77.43102 > 10.50.0.20.22: Flags [S]\n198.51.100.77.43103 > 10.50.0.20.80: Flags [S]\n198.51.100.77.43104 > 10.50.0.20.443: Flags [S]",
+            "hint": "Use: sudo tcpdump -nn -r /var/log/netlab/incident.pcap"
+          },
+          {
+            "title": "Generate Zeek logs",
+            "goal": "Process the capture with Zeek.",
+            "match": "^zeek\\s+-r\\s+/var/log/netlab/incident\\.pcap$",
+            "output": "Generated conn.log, dns.log, notice.log, and weird.log.",
+            "hint": "Use: zeek -r /var/log/netlab/incident.pcap"
+          },
+          {
+            "title": "Inspect connection log",
+            "goal": "Review source, destination, and service fields.",
+            "match": "^cut\\s+-f3,5,6,7\\s+conn\\.log\\s*\\|\\s*head$",
+            "output": "198.51.100.77 10.50.0.20 22 ssh\n198.51.100.77 10.50.0.20 80 http\n198.51.100.77 10.50.0.20 443 ssl",
+            "hint": "Use: cut -f3,5,6,7 conn.log | head"
+          },
+          {
+            "title": "Extract Suricata alert",
+            "goal": "Read alert source and signature from EVE JSON.",
+            "match": "^jq\\s+-r\\s+.+eve\\.json$",
+            "output": "198.51.100.77\t10.50.0.20\tET SCAN Potential SSH/HTTP/TLS Sweep",
+            "hint": "Use jq -r with select(.event_type==\"alert\") against eve.json"
+          },
+          {
+            "title": "Correlate the source",
+            "goal": "Find all Zeek connections from the suspicious address.",
+            "match": "^grep\\s+-F\\s+['\"]?198\\.51\\.100\\.77['\"]?\\s+conn\\.log$",
+            "output": "C1 198.51.100.77 10.50.0.20 22 S0\nC2 198.51.100.77 10.50.0.20 80 S0\nC3 198.51.100.77 10.50.0.20 443 S0",
+            "hint": "Use: grep -F 198.51.100.77 conn.log"
+          },
+          {
+            "title": "Hash the evidence",
+            "goal": "Record a SHA-256 digest for the capture.",
+            "match": "^sha256sum\\s+/var/log/netlab/incident\\.pcap$",
+            "output": "6ac36e8dfd3e279a6fef7a564d01a9e8448568dc82bd529a1d6749981a6a47ea  /var/log/netlab/incident.pcap",
+            "hint": "Use: sha256sum /var/log/netlab/incident.pcap"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "label": "Zeek — Monitoring With Zeek",
+          "url": "https://docs.zeek.org/en/master/about/monitoring.html"
+        },
+        {
+          "label": "Suricata — Quickstart guide",
+          "url": "https://docs.suricata.io/en/latest/quickstart.html"
+        },
+        {
+          "label": "Suricata — IDS/IPS concepts",
+          "url": "https://docs.suricata.io/en/latest/ips/ips-concept.html"
+        }
+      ]
+    },
+    {
+      "id": "devsecops",
+      "title": "12. DevSecOps Network Controls & Capstone",
+      "badge": "Capstone",
+      "estimated": "60 min",
+      "theory": [
+        {
+          "heading": "Shift security into the delivery flow",
+          "text": "DevSecOps makes security a continuous design, build, test, deployment, and operations responsibility. Fast feedback is valuable when findings are reproducible, prioritized, owned, and connected to remediation."
+        },
+        {
+          "heading": "Complementary test types",
+          "text": "SAST analyzes code, SCA inventories dependencies, secret scanning detects exposed credentials, IaC scanning checks infrastructure definitions, image scanning checks packages, and DAST probes a running application."
+        },
+        {
+          "heading": "Network policy as code",
+          "text": "Firewall, cloud security-group, proxy, gateway, and workload-network policies should be reviewed, tested, versioned, and promoted with the same discipline as application code."
+        },
+        {
+          "heading": "Secrets and identity",
+          "text": "Secrets must not be hard-coded or printed to logs. Prefer short-lived workload identity and managed secret stores. When a secret reaches version history, rotate it; deleting the latest line is not enough."
+        },
+        {
+          "heading": "Evidence-based release gates",
+          "text": "A useful gate has a defined policy, trustworthy inputs, a documented exception path, and an owner. It blocks material risk without turning every low-confidence alert into an outage."
+        }
+      ],
+      "quiz": [
+        {
+          "prompt": "What is the primary goal of shift-left security?",
+          "options": [
+            "Find and prevent security defects earlier in delivery",
+            "Run every test only after production release",
+            "Remove security ownership from developers",
+            "Store credentials in source control"
+          ],
+          "answer": 0,
+          "explanation": "Earlier, automated feedback reduces rework and helps teams address design and implementation weaknesses before release."
+        },
+        {
+          "prompt": "What does SCA primarily examine?",
+          "options": [
+            "Third-party components and dependency risk",
+            "Ethernet signal voltage",
+            "Only running HTTP endpoints",
+            "DNS root-server availability"
+          ],
+          "answer": 0,
+          "explanation": "Software Composition Analysis inventories external components, licenses, versions, and known vulnerability information."
+        },
+        {
+          "prompt": "What does DAST require?",
+          "options": [
+            "A running application target",
+            "Only source-code parsing",
+            "A Layer-2 switch console",
+            "The production database password"
+          ],
+          "answer": 0,
+          "explanation": "Dynamic testing sends requests to an executing application and evaluates observed behavior."
+        },
+        {
+          "prompt": "What should happen after a credential is committed to repository history?",
+          "options": [
+            "Revoke or rotate it and investigate exposure",
+            "Delete the latest line and keep using it",
+            "Rename the file only",
+            "Base64-encode it"
+          ],
+          "answer": 0,
+          "explanation": "Version history and replicas may retain the value, so the credential must be treated as compromised."
+        },
+        {
+          "prompt": "Why store network policy as code?",
+          "options": [
+            "Enable review, testing, versioning, and reproducible promotion",
+            "Make every rule publicly writable",
+            "Avoid ownership and audit history",
+            "Disable rollback"
+          ],
+          "answer": 0,
+          "explanation": "Policy as code gives network controls the same collaboration and change-control advantages as other engineered artifacts."
+        },
+        {
+          "prompt": "Which check best detects an overly broad cloud security group in Terraform?",
+          "options": [
+            "IaC configuration scanning",
+            "SAST of an unrelated frontend",
+            "DNSSEC validation",
+            "Ethernet loop detection"
+          ],
+          "answer": 0,
+          "explanation": "IaC scanners evaluate declarative infrastructure for risky configuration such as unrestricted ingress."
+        },
+        {
+          "prompt": "What makes a release gate operationally useful?",
+          "options": [
+            "Clear policy, reliable evidence, ownership, and an exception process",
+            "Blocking every unverified alert forever",
+            "No record of decisions",
+            "A scanner that cannot reproduce findings"
+          ],
+          "answer": 0,
+          "explanation": "A gate must distinguish material risk, support remediation, and handle explicit exceptions without becoming arbitrary."
+        },
+        {
+          "prompt": "Which artifact inventories components in a build?",
+          "options": [
+            "Software Bill of Materials",
+            "ARP cache",
+            "Default route",
+            "TLS session ticket only"
+          ],
+          "answer": 0,
+          "explanation": "An SBOM records component identity and relationships, supporting vulnerability and supply-chain analysis."
+        },
+        {
+          "prompt": "Why are short-lived workload identities preferable to static shared secrets?",
+          "options": [
+            "They reduce reuse, exposure duration, and manual distribution",
+            "They remove the need for authorization",
+            "They never need policy",
+            "They make logs unnecessary"
+          ],
+          "answer": 0,
+          "explanation": "Short-lived, scoped credentials limit blast radius and can be issued based on verified workload identity."
+        },
+        {
+          "prompt": "Which combination provides broad pre-release coverage?",
+          "options": [
+            "Secret scan + SAST + SCA + IaC/image scan + DAST",
+            "Ping only",
+            "One manual firewall screenshot",
+            "DNS lookup without application tests"
+          ],
+          "answer": 0,
+          "explanation": "The controls cover different failure classes; no single scanner substitutes for the others."
+        }
+      ],
+      "lab": {
+        "title": "Lab 12 — Gate an unsafe service before release",
+        "scenario": "Run a simulated security pipeline against an application image and deployment definitions. Collect six independent signals before approving release.",
+        "environment": [
+          "Simulated CI workspace",
+          "gitleaks, Trivy, Syft, ZAP, Conftest",
+          "No external targets are contacted"
+        ],
+        "safety": "The simulator never executes scanners. In real work, run DAST only against explicitly authorized targets.",
+        "tasks": [
+          {
+            "title": "Scan for secrets",
+            "goal": "Check the repository and its history.",
+            "match": "^gitleaks\\s+detect\\s+--source\\s+\\.\\s+--no-banner$",
+            "output": "Finding: deploy/example.env:3 contains a revoked training token\nResult: FAIL until the example is removed and history is reviewed.",
+            "hint": "Use: gitleaks detect --source . --no-banner"
+          },
+          {
+            "title": "Scan the image",
+            "goal": "Check OS and library vulnerabilities.",
+            "match": "^trivy\\s+image\\s+app:lab$",
+            "output": "app:lab\nTotal: 2 (HIGH: 1, CRITICAL: 1)\nopenssl CVE-TRAINING-0001 fixed in 3.0.18",
+            "hint": "Use: trivy image app:lab"
+          },
+          {
+            "title": "Scan infrastructure code",
+            "goal": "Find exposed network configuration.",
+            "match": "^trivy\\s+config\\s+\\.$",
+            "output": "deploy/main.tf: security group allows 0.0.0.0/0 to TCP 22\nResult: HIGH",
+            "hint": "Use: trivy config ."
+          },
+          {
+            "title": "Generate an SBOM",
+            "goal": "Inventory image components.",
+            "match": "^syft\\s+app:lab\\s+-o\\s+cyclonedx-json$",
+            "output": "{\"bomFormat\":\"CycloneDX\",\"components\":[{\"name\":\"openssl\",\"version\":\"3.0.17\"},{\"name\":\"nginx\",\"version\":\"1.24.0\"}]}",
+            "hint": "Use: syft app:lab -o cyclonedx-json"
+          },
+          {
+            "title": "Run authorized DAST",
+            "goal": "Execute the baseline web scan.",
+            "match": "^zap-baseline\\.py\\s+-t\\s+https://app\\.internal\\s+-r\\s+zap-report\\.html$",
+            "output": "WARN: Content-Security-Policy header not set\nPASS: no high-confidence injection findings\nReport: zap-report.html",
+            "hint": "Use: zap-baseline.py -t https://app.internal -r zap-report.html"
+          },
+          {
+            "title": "Evaluate policy",
+            "goal": "Run release policy tests.",
+            "match": "^conftest\\s+test\\s+deploy/$",
+            "output": "FAIL deploy/main.tf - SSH ingress must not allow 0.0.0.0/0\nRelease decision: BLOCKED pending remediation or approved exception.",
+            "hint": "Use: conftest test deploy/"
+          }
+        ]
+      },
+      "resources": [
+        {
+          "label": "OWASP DevSecOps Guideline",
+          "url": "https://owasp.org/www-project-devsecops-guideline/"
+        },
+        {
+          "label": "OWASP — Secrets Management in DevSecOps",
+          "url": "https://owasp.org/www-project-devsecops-guideline/latest/01a-Secrets-Management"
+        },
+        {
+          "label": "SLSA — Supply-chain Levels for Software Artifacts",
+          "url": "https://slsa.dev/"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "label": "Professor Messer — current N10-009 Network+ course",
+      "url": "https://www.professormesser.com/network-plus/n10-009/n10-009-video/n10-009-training-course/",
+      "note": "Current free topic map for networking concepts, implementations, security, operations, and troubleshooting."
+    },
+    {
+      "label": "Red Hat — VLAN tagging and VLAN-aware bridges",
+      "url": "https://docs.redhat.com/en/documentation/red_hat_enterprise_linux/10/html/configuring_and_managing_networking/configuring-vlan-tagging",
+      "note": "Operational Linux VLAN and bridge-filtering guidance."
+    },
+    {
+      "label": "CISA — Zero Trust Microsegmentation",
+      "url": "https://www.cisa.gov/resources-tools/resources/microsegmentation-zero-trust-part-one-introduction-and-planning",
+      "note": "Current segmentation concepts, planning, benefits, and implementation challenges."
+    },
+    {
+      "label": "Cloudflare — Reverse proxy",
+      "url": "https://www.cloudflare.com/learning/cdn/glossary/reverse-proxy/",
+      "note": "Reverse-proxy roles in traffic delivery, security, and load balancing."
+    },
+    {
+      "label": "WireGuard — Quick Start",
+      "url": "https://www.wireguard.com/quickstart/",
+      "note": "Primary operational guide for WireGuard interfaces, peers, keys, and routing."
+    },
+    {
+      "label": "NIST SP 800-207 — Zero Trust Architecture",
+      "url": "https://csrc.nist.gov/pubs/sp/800/207/final",
+      "note": "Authoritative definition and deployment models for zero trust."
+    },
+    {
+      "label": "Zeek — Network Security Monitoring",
+      "url": "https://docs.zeek.org/en/master/about/monitoring.html",
+      "note": "Network evidence types and protocol-aware transaction logging."
+    },
+    {
+      "label": "Suricata — Quickstart and IDS/IPS guidance",
+      "url": "https://docs.suricata.io/en/latest/quickstart.html",
+      "note": "Primary documentation for alerting, EVE JSON, and inline prevention."
+    },
+    {
+      "label": "OWASP DevSecOps Guideline",
+      "url": "https://owasp.org/www-project-devsecops-guideline/",
+      "note": "Secure-pipeline practices: secrets, SAST, SCA, DAST, IaC, infrastructure, and container scanning."
+    },
+    {
+      "label": "SLSA",
+      "url": "https://slsa.dev/",
+      "note": "Software supply-chain integrity framework referenced by the roadmap."
+    }
+  ]
+}

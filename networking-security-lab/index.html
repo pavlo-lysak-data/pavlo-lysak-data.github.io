@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Linux Networking & Security — Complete Interactive Course</title>
+  <meta name="description" content="A complete 12-module Linux networking and security course with assessment-aligned theory, technical details, operational use cases, 120 graded questions, and 12 hands-on labs.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<button class="mobile-menu" id="mobileMenu" aria-label="Open course navigation">☰ Modules</button>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="brand__kicker">DevOps learning path</div>
+      <h1>Linux Networking & Security</h1>
+      <p>Deep technical theory, real use cases, 120 graded questions, and twelve Ubuntu/WSL labs.</p>
+    </div>
+    <button
+      class="tutor-sidebar-btn"
+      id="tutorSidebar"
+      type="button"
+      aria-haspopup="dialog"
+      aria-controls="tutorPanel"
+    >
+      <span class="tutor-icon" aria-hidden="true">✦</span>
+      <span><strong>Chat with Tutor</strong><small>Ask about the current module</small></span>
+      <span class="tutor-arrow" aria-hidden="true">→</span>
+    </button>
+    <div class="progress-card">
+      <div class="progress-card__row"><span>Course progress</span><strong id="progressText">0%</strong></div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <nav class="module-nav" id="moduleNav" aria-label="Course modules"></nav>
+    <div class="sidebar-actions">
+      <button class="ghost-btn" id="homeBtn">Overview</button>
+      <button class="ghost-btn" id="resetBtn">Reset</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="hero">
+      <div>
+        <div class="hero__eyebrow">Interactive course • Ubuntu/WSL friendly</div>
+        <h2>Learn the path a packet takes—and how to secure it.</h2>
+        <p id="courseSubtitle"></p>
+      </div>
+      <div class="hero__stats">
+        <div class="stat"><strong>12</strong><span>modules</span></div>
+        <div class="stat"><strong>120</strong><span>questions</span></div>
+        <div class="stat"><strong>12</strong><span>labs</span></div>
+        <div class="stat"><strong>70%</strong><span>quiz pass mark</span></div>
+      </div>
+    </section>
+
+    <section id="courseView">
+      <div class="module-header">
+        <div>
+          <span class="badge" id="moduleBadge"></span>
+          <h3 id="moduleTitle"></h3>
+          <p id="moduleMeta"></p>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab-btn is-active" id="tab-theory" role="tab" aria-controls="panel-theory" aria-selected="true" data-tab="theory">Theory & use cases</button>
+        <button class="tab-btn" id="tab-quiz" role="tab" aria-controls="panel-quiz" aria-selected="false" tabindex="-1" data-tab="quiz">10-question quiz</button>
+        <button class="tab-btn" id="tab-lab" role="tab" aria-controls="panel-lab" aria-selected="false" tabindex="-1" data-tab="lab">Hands-on lab</button>
+        <button class="tab-btn" id="tab-resources" role="tab" aria-controls="panel-resources" aria-selected="false" tabindex="-1" data-tab="resources">Resources</button>
+      </div>
+
+      <section class="panel is-active" id="panel-theory" role="tabpanel" aria-labelledby="tab-theory"></section>
+      <section class="panel" id="panel-quiz" role="tabpanel" aria-labelledby="tab-quiz"></section>
+      <section class="panel" id="panel-lab" role="tabpanel" aria-labelledby="tab-lab"></section>
+      <section class="panel" id="panel-resources" role="tabpanel" aria-labelledby="tab-resources"></section>
+    </section>
+
+    <section class="card sources" id="sourcesSection">
+      <h3>Source basis and scope</h3>
+      <p>The roadmap supplies the initial scope and linked resources. The course expands it with current primary networking and security guidance. The technical lessons, use cases, questions, answer rationales, and Linux lab simulations are original course material rather than copied from the linked works.</p>
+      <ul id="sourceList"></ul>
+    </section>
+
+    <footer class="footer">
+      Labs are intended for the built-in simulator or a disposable Ubuntu/WSL environment that you are authorized to administer. Review commands before running them on a real host.
+    </footer>
+  </main>
+</div>
+<button
+  class="tutor-launcher"
+  id="tutorLauncher"
+  type="button"
+  aria-haspopup="dialog"
+  aria-controls="tutorPanel"
+  aria-label="Chat with your course tutor about the current module"
+>
+  <span class="tutor-icon" aria-hidden="true">✦</span>
+  <span><strong>Chat with Tutor</strong><small>Ask about this module</small></span>
+</button>
+
+<aside
+  class="tutor-panel"
+  id="tutorPanel"
+  role="dialog"
+  aria-modal="false"
+  aria-labelledby="tutorTitle"
+  aria-hidden="true"
+>
+  <header class="tutor-panel__header">
+    <div class="tutor-avatar" aria-hidden="true">✦</div>
+    <div>
+      <span class="tutor-panel__eyebrow" id="tutorProviderLabel">Gemini 3.6 Flash • Default tutor</span>
+      <h2 id="tutorTitle">Networking & Security Tutor</h2>
+      <p id="tutorModuleLabel"></p>
+    </div>
+    <button class="tutor-close" id="tutorClose" type="button" aria-label="Close tutor">×</button>
+  </header>
+
+  <div class="tutor-provider" role="group" aria-label="Choose tutor model">
+    <span class="tutor-provider__label">Tutor model</span>
+    <div class="tutor-provider__options">
+      <button
+        class="tutor-provider__option is-active"
+        type="button"
+        data-tutor-provider="gemini"
+        aria-pressed="true"
+      >
+        <strong>Gemini 3.6 Flash</strong>
+        <small>Default</small>
+      </button>
+      <button
+        class="tutor-provider__option"
+        type="button"
+        data-tutor-provider="openai"
+        aria-pressed="false"
+      >
+        <strong>GPT-5.6 Sol</strong>
+        <small>Alternate</small>
+      </button>
+    </div>
+  </div>
+
+  <div class="tutor-messages" id="tutorMessages" role="log" aria-live="polite" aria-relevant="additions"></div>
+
+  <div class="tutor-suggestions" id="tutorSuggestions" aria-label="Suggested tutor questions"></div>
+
+  <form class="tutor-composer" id="tutorForm">
+    <label class="sr-only" for="tutorInput">Ask the course tutor</label>
+    <textarea
+      id="tutorInput"
+      rows="2"
+      maxlength="700"
+      placeholder="Ask about the theory, a quiz answer, or a lab command…"
+    ></textarea>
+    <div class="tutor-composer__actions">
+      <span>Enter to send • Shift+Enter for a new line</span>
+      <button class="tutor-clear" id="tutorClear" type="button">Clear</button>
+      <button class="tutor-send" type="submit">Send</button>
+    </div>
+  </form>
+  <p class="tutor-disclaimer" id="tutorDisclaimer">Powered by Gemini 3.6 Flash and grounded in this course’s lessons. Run commands only in systems you are authorized to administer.</p>
+</aside>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="course-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,662 @@
+{
+  "osi": {
+    "objectives": [
+      "Map a symptom to the OSI and TCP/IP layers without treating either model as a literal packet implementation.",
+      "Identify the protocol data unit, addressing information, and typical device at each operational layer.",
+      "Trace encapsulation from application data to bits and decapsulation at the receiver.",
+      "Use Linux evidence to test link, address, route, name resolution, transport, and application health in order."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Layer boundaries and protocol data units",
+        "text": "At Layer 2, an Ethernet frame carries source and destination MAC addresses for one local link. Layer 3 adds an IP packet whose addresses remain meaningful across routed networks. Layer 4 adds TCP or UDP ports for processes. The application layer defines messages such as HTTP requests and DNS queries. A switch normally forwards frames; a router decrements TTL or Hop Limit and forwards packets.",
+        "useCase": "Use this mapping when a packet capture shows Ethernet delivery working but the destination IP, transport handshake, or application response failing."
+      },
+      {
+        "heading": "Encapsulation is observable",
+        "text": "An HTTPS request starts as application bytes, becomes TCP segments, is wrapped in IP packets, then in link-layer frames. On Ethernet the frame also includes an EtherType and integrity check. MTU limits the IP packet carried without fragmentation; TCP usually adapts with MSS. Replies are decapsulated in reverse order.",
+        "useCase": "Use encapsulation knowledge to explain why an application can fail because of an MTU, routing, firewall, TCP, TLS, or HTTP problem."
+      },
+      {
+        "heading": "TCP/IP is the practical architecture",
+        "text": "The Internet protocol suite is commonly grouped into Link, Internet, Transport, and Application layers. OSI Session and Presentation functions usually live inside applications or libraries—for example, TLS performs cryptographic presentation functions above TCP. ICMP belongs with IP at the Internet layer and reports control or error information; ping commonly sends ICMP Echo messages.",
+        "useCase": "Use the TCP/IP model for real configurations while using OSI terminology to communicate and narrow a fault domain."
+      },
+      {
+        "heading": "Layered troubleshooting is a decision tree",
+        "text": "Begin with scope and the cheapest discriminating test. Confirm administrative and carrier state, then addresses, route selection, DNS, a listening socket, transport reachability, TLS, and the application response. A successful higher-layer test implies many lower-layer prerequisites worked for that path; a failed ping alone does not prove the host is down because ICMP may be filtered.",
+        "useCase": "Use the ladder during incidents to avoid changing DNS, firewalls, certificates, and application settings at the same time."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "A web API fails by name",
+        "scenario": "The host can reach 1.1.1.1, but curl reports that api.internal cannot be resolved.",
+        "application": "IP routing is already partly proven. Test the application-layer resolver path with resolvectl, getent, or dig before touching routes or TLS."
+      },
+      {
+        "title": "A container has link but no egress",
+        "scenario": "The veth interface is UP and has an address, but external connections time out.",
+        "application": "Continue upward: inspect the namespace route, forwarding/NAT on the host, transport filtering, and only then the application."
+      },
+      {
+        "title": "A security alert needs context",
+        "scenario": "Monitoring reports repeated SYN packets to a protected service.",
+        "application": "Separate the network and transport facts from assumptions: identify source/destination IPs, ports, TCP flags, route path, and whether any application session was established."
+      }
+    ],
+    "labContexts": [
+      "Interface state is the first link-layer checkpoint: DOWN or NO-CARRIER must be resolved before address or application tests can succeed.",
+      "Address inspection proves which Layer-3 identities and prefixes Linux has assigned to each interface.",
+      "The routing table is the forwarding policy; Linux applies longest-prefix match and falls back to a default route only when no more-specific route matches.",
+      "Resolver configuration identifies the DNS servers and search domains the host will use before an application can translate a name.",
+      "A listening socket links a transport port to a local process and reveals whether it is bound to loopback, a specific address, or every interface.",
+      "curl exercises the application path and can expose DNS, TCP, TLS, HTTP status, and response-header evidence in one controlled request."
+    ]
+  },
+  "link": {
+    "objectives": [
+      "Explain Ethernet forwarding, MAC learning, broadcasts, and the boundary of a local broadcast domain.",
+      "Distinguish ARP for IPv4 from NDP for IPv6 and interpret the Linux neighbor cache.",
+      "Diagnose interface state, MTU, packet errors, speed, duplex, and link negotiation.",
+      "Build an isolated Layer-2 path with namespaces and a veth pair."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Ethernet forwarding and MAC learning",
+        "text": "A switch learns a source MAC address on the ingress port, then looks up the destination MAC in its forwarding table. Unknown unicast, broadcast, and some multicast traffic are flooded within the VLAN. MAC addresses identify interfaces on a local Layer-2 domain; routers replace the link-layer header at every routed hop.",
+        "useCase": "Use MAC tables and packet captures when two hosts share a subnet but cannot exchange frames, or when a loop causes broadcast amplification."
+      },
+      {
+        "heading": "ARP, NDP, and neighbor state",
+        "text": "Before sending an IPv4 packet to an on-link next hop, a host uses ARP to learn the target MAC. IPv6 uses ICMPv6 Neighbor Discovery instead. Linux records results in the neighbor table with states such as REACHABLE, STALE, DELAY, PROBE, FAILED, or INCOMPLETE. A FAILED entry points to local-link delivery, VLAN, or peer problems—not DNS.",
+        "useCase": "Use ip neigh when a route is correct but packets never leave the local segment or a duplicate address is suspected."
+      },
+      {
+        "heading": "MTU, counters, speed, and duplex",
+        "text": "MTU is the largest network-layer packet an interface carries as one unit; Ethernet commonly uses 1500 bytes, while tunnels often need a smaller effective MTU. ip -s link exposes drops and errors. ethtool reports negotiated speed, duplex, link state, and offload features. CRC errors, drops, or duplex mismatches can create loss that simple link-state checks miss.",
+        "useCase": "Use counters and ethtool for intermittent throughput, retransmissions, or large-packet failures."
+      },
+      {
+        "heading": "Linux virtual Layer 2",
+        "text": "A veth pair behaves like a virtual cable: a frame sent into one endpoint appears at the peer. A network namespace owns an independent set of interfaces, addresses, routes, neighbors, and sockets. A Linux bridge is a software Layer-2 switch that can connect veth endpoints, virtual machines, containers, and physical NICs.",
+        "useCase": "These primitives are the foundation of container networking, local network emulation, and virtual-machine host bridges."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Container-to-container connectivity",
+        "scenario": "Two containers use separate namespaces connected through host-side veth endpoints.",
+        "application": "Inspect each endpoint, namespace address, neighbor entry, bridge membership, and VLAN membership before blaming the application."
+      },
+      {
+        "title": "A virtual machine needs LAN access",
+        "scenario": "A VM tap interface is attached to a Linux bridge with a physical NIC.",
+        "application": "The bridge forwards Ethernet frames; the VM participates in the LAN while the host can inspect bridge ports and MAC learning."
+      },
+      {
+        "title": "Large transfers fail but ping works",
+        "scenario": "Small packets succeed across a tunnel while TLS transfers stall.",
+        "application": "Compare interface and path MTU, check drops, and test packet size rather than treating successful small pings as proof of full path health."
+      }
+    ],
+    "labContexts": [
+      "Namespaces create isolated network stacks so the lab can model separate hosts without additional machines.",
+      "The veth pair supplies a deterministic point-to-point Layer-2 path; each endpoint immediately sends frames to its peer.",
+      "Moving an endpoint changes its owner namespace, so subsequent address and link commands must run in that namespace.",
+      "Addresses in the same /24 let each endpoint classify the peer as on-link and resolve it directly with ARP.",
+      "Interfaces are administratively DOWN by default; bringing them UP is required before carrier and protocol traffic can flow.",
+      "The final ping triggers ARP and ICMP, proving link state, addressing, neighbor discovery, and bidirectional packet delivery together."
+    ]
+  },
+  "routing": {
+    "objectives": [
+      "Calculate IPv4 networks, broadcast boundaries, and traditional host capacity from CIDR prefixes.",
+      "Interpret IPv4 private, loopback, default-route, and IPv6 link-local ranges.",
+      "Predict route selection using longest-prefix match and install a next-hop route.",
+      "Explain forwarding and source NAT across namespaces or private networks."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "CIDR is binary partitioning",
+        "text": "A prefix length states how many leading bits identify the network. /24 equals 255.255.255.0 and leaves eight host bits: 256 total addresses, traditionally 254 usable after network and broadcast addresses. 192.168.10.77/24 therefore belongs to 192.168.10.0/24. Smaller subnets require block-size arithmetic at the changing octet.",
+        "useCase": "Use CIDR calculations when designing VPC subnets, firewall prefixes, Kubernetes pod ranges, and static routes."
+      },
+      {
+        "heading": "Special-purpose ranges affect behavior",
+        "text": "RFC1918 private IPv4 space includes 10.0.0.0/8, 172.16.0.0/12, and 192.168.0.0/16. 127.0.0.0/8 is loopback and never leaves the host. 0.0.0.0/0 matches every IPv4 destination as the least-specific route. IPv6 fe80::/10 is link-local and usually requires an interface scope.",
+        "useCase": "Recognizing special ranges prevents accidental Internet advertisements, invalid firewall rules, and confusion between host-local and network-reachable services."
+      },
+      {
+        "heading": "Longest-prefix match chooses the path",
+        "text": "Linux finds every route that matches the destination and normally chooses the most specific prefix. A /24 beats a /16, which beats the default /0. The selected route supplies an output interface, optional next-hop gateway, source-address choice, and metric. ip route get evaluates this policy for one destination.",
+        "useCase": "Use route lookup when VPN, cloud, or multihomed routes overlap and traffic takes an unexpected interface."
+      },
+      {
+        "heading": "Forwarding and NAT solve different problems",
+        "text": "IP forwarding lets a Linux host route packets between interfaces or namespaces. Endpoints still need return routes. Source NAT rewrites the sender address—and often the source port—while connection tracking reverses the translation for replies. NAT can hide private addressing, but it is not a substitute for firewall policy or identity.",
+        "useCase": "Container egress typically combines namespace routes, host forwarding, a default route, stateful filtering, and source NAT."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Designing a cloud subnet",
+        "scenario": "A service tier needs about 50 IPv4 addresses plus growth.",
+        "application": "A /26 provides 64 total addresses before provider reservations; document the network boundary and avoid overlapping adjacent subnets."
+      },
+      {
+        "title": "A VPN steals unrelated traffic",
+        "scenario": "After connecting, Internet traffic follows the tunnel unexpectedly.",
+        "application": "Inspect the installed prefixes and metrics. A new 0.0.0.0/0 or more-specific route explains the behavior better than DNS changes."
+      },
+      {
+        "title": "Private workloads need egress",
+        "scenario": "Instances have RFC1918 addresses and no public addresses.",
+        "application": "Route them through a forwarding gateway, apply explicit policy, and use source NAT where the upstream network lacks return routes."
+      }
+    ],
+    "labContexts": [
+      "Three namespaces model two endpoint networks separated by a router, making the routing boundary visible.",
+      "The blue-to-router veth pair represents one subnet and creates the first directly connected route.",
+      "The green-to-router pair represents a second subnet that cannot be reached from blue without Layer-3 forwarding.",
+      "net.ipv4.ip_forward changes the router namespace from an endpoint into a device that may forward packets between interfaces.",
+      "Each endpoint route names the remote prefix and a gateway that is directly reachable on its local subnet; the reverse route is equally important.",
+      "The final ping proves forward and return routing plus ICMP delivery; failure should be localized with address, route, neighbor, and capture evidence."
+    ]
+  },
+  "transport": {
+    "objectives": [
+      "Compare TCP reliability and state with UDP datagram delivery.",
+      "Recognize common service ports, ephemeral client ports, and socket tuples.",
+      "Interpret TCP handshake and ESTABLISHED state from ss or a packet capture.",
+      "Bind, inspect, test, capture, and safely stop a local service."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "TCP maintains ordered connection state",
+        "text": "A TCP client normally sends SYN, the server replies SYN-ACK, and the client completes with ACK. Sequence numbers, acknowledgements, retransmission, flow control, and congestion control provide an ordered byte stream. ESTABLISHED means the handshake completed; it does not prove the application returned correct data.",
+        "useCase": "Use TCP states and flags to distinguish a refused port, a filtered path, handshake loss, resets, and application-layer failures."
+      },
+      {
+        "heading": "UDP trades guarantees for simplicity",
+        "text": "UDP sends independent datagrams without a transport handshake, ordering, retransmission, or congestion behavior equivalent to TCP. Applications must tolerate loss or add their own reliability. DNS commonly uses UDP 53 for ordinary queries and TCP 53 for cases such as large responses and zone transfers.",
+        "useCase": "Use UDP for time-sensitive or request/response workloads where application behavior can handle loss, such as DNS, NTP, metrics, and media."
+      },
+      {
+        "heading": "A socket is address plus transport context",
+        "text": "A listening socket is identified by protocol, local address, and port. A TCP connection is uniquely described by source IP, source port, destination IP, destination port, and protocol. Clients normally receive temporary ephemeral source ports. Binding to 127.0.0.1 exposes only loopback; 0.0.0.0 listens on every IPv4 interface.",
+        "useCase": "Use ss -ltnp to confirm the owning process and bind address when a service works locally but not remotely."
+      },
+      {
+        "heading": "Ports are conventions, not security identities",
+        "text": "HTTPS commonly uses TCP 443 and SSH TCP 22, but applications can listen elsewhere. A listening port only shows a process accepted local binding; route, firewall, TLS, and application checks still matter. Network policy should match the actual workload and destination, not assume any process on port 443 is trustworthy.",
+        "useCase": "Use port and process evidence together during exposure reviews and incident response."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "The service works only on the host",
+        "scenario": "curl to 127.0.0.1:8080 succeeds, while remote clients time out.",
+        "application": "Check whether the listener is bound only to loopback, then verify host firewall and upstream policy before widening exposure."
+      },
+      {
+        "title": "A load balancer reports connection refusal",
+        "scenario": "Health checks immediately fail with RST.",
+        "application": "A closed port or wrong bind is more likely than a slow application. Confirm the listener and destination port first."
+      },
+      {
+        "title": "Telemetry can tolerate limited loss",
+        "scenario": "High-volume metrics favor low overhead over per-message acknowledgement.",
+        "application": "UDP may fit, but the system must measure drop, define acceptable loss, and avoid assuming delivery."
+      }
+    ],
+    "labContexts": [
+      "Creating deterministic content gives the client a known application response instead of testing an ambiguous service.",
+      "The Python server binds loopback port 8080, demonstrating how address selection controls reachability independently of firewall rules.",
+      "ss confirms the kernel listener, protocol, local address, port, and process before any client test.",
+      "curl proves that the local TCP handshake and HTTP request/response path work and that the returned content matches expectation.",
+      "tcpdump on lo exposes SYN, SYN-ACK, ACK, payload, acknowledgements, and teardown, connecting the theory to observable packets.",
+      "Stopping the temporary process restores the environment and teaches controlled lifecycle management rather than leaving test exposure behind."
+    ]
+  },
+  "services": {
+    "objectives": [
+      "Trace recursive DNS resolution from client stub through root, TLD, and authoritative servers.",
+      "Choose A, AAAA, CNAME, MX, PTR, NS, and TXT records for practical use cases.",
+      "Explain DHCPv4 DORA and the configuration a lease normally supplies.",
+      "Explain why NTP and system name-service configuration affect applications and security."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Recursive and authoritative DNS roles",
+        "text": "A normal client stub asks a recursive resolver. On a cache miss, the resolver follows referrals from a root server to the top-level-domain servers and then to the authoritative server for the zone. The resolver caches each answer for its TTL. Authoritative servers publish zone data; they do not recursively resolve arbitrary names for clients.",
+        "useCase": "Use +trace to test delegation and an ordinary dig query to test the recursive resolver that applications normally depend on."
+      },
+      {
+        "heading": "Record types express different relationships",
+        "text": "A maps a name to IPv4, AAAA to IPv6, CNAME aliases one name to another, MX identifies mail exchangers, NS delegates a zone, TXT carries text policies, and PTR supports reverse lookup under special reverse zones. CNAME affects resolution flow; it is not a redirect at the HTTP layer.",
+        "useCase": "Use the right record to publish dual-stack services, mail routing, ownership proofs, reverse identity, and delegated subdomains."
+      },
+      {
+        "heading": "DHCP configures more than an address",
+        "text": "DHCPv4 commonly follows Discover, Offer, Request, Acknowledge. A lease can supply address, prefix, default gateway, DNS servers, domain search list, and lease duration. Because early messages occur before the client has an address, DHCP relies on local broadcast and often a relay to cross routed boundaries.",
+        "useCase": "Use lease and relay evidence when only one VLAN fails to obtain addresses or clients receive the wrong gateway or DNS server."
+      },
+      {
+        "heading": "Time and the system resolver are dependencies",
+        "text": "NTP normally uses UDP 123 and aligns clocks so certificate validation, distributed logs, authentication, and incident timelines remain meaningful. Applications may resolve through libc NSS and systemd-resolved rather than reading resolv.conf directly. getent tests the system name-service path, while dig tests DNS more directly.",
+        "useCase": "Use both getent and dig when a DNS command succeeds but an application still cannot resolve a host."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "A rollout changed but clients see old addresses",
+        "scenario": "Authoritative DNS is correct, yet some clients still use the previous A record.",
+        "application": "Inspect resolver caches and TTLs. A cached answer can be valid even after authoritative data changes."
+      },
+      {
+        "title": "Mail is not reaching a domain",
+        "scenario": "Web records work, but remote mail systems cannot find a destination.",
+        "application": "Inspect MX priorities and the A/AAAA records of the mail exchanger names rather than changing the website CNAME."
+      },
+      {
+        "title": "TLS suddenly fails across many services",
+        "scenario": "Certificates appear not-yet-valid or expired on one host only.",
+        "application": "Check clock synchronization before rotating certificates or changing trust stores."
+      }
+    ],
+    "labContexts": [
+      "Resolver settings identify the recursive service and search behavior that normal applications inherit.",
+      "A short A query isolates name-to-address resolution and produces output convenient for scripts.",
+      "An MX query shows typed DNS data, priorities, and the hostnames responsible for receiving mail.",
+      "Reverse lookup follows PTR data and demonstrates that reverse identity is separately delegated from forward records.",
+      "A trace bypasses the usual recursive answer path to expose root, TLD, and authoritative referrals and delegation failures.",
+      "getent exercises the host's configured NSS path, making it a better approximation of application behavior than dig alone."
+    ]
+  },
+  "tls": {
+    "objectives": [
+      "Explain how HTTPS combines HTTP with TLS confidentiality, integrity, and server authentication.",
+      "Trace certificate-chain validation, hostname validation, SNI, and private-key responsibility.",
+      "Explain DNSSEC signatures and the parent-to-child chain of trust.",
+      "Create and inspect a test certificate, observe verification failure, and trust it explicitly without disabling checks."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "TLS protects a transport session",
+        "text": "HTTPS is HTTP carried through TLS, usually over TCP. During the handshake, peers negotiate protocol parameters, the server presents a certificate chain, and key exchange derives symmetric session keys. Record-layer encryption protects confidentiality and integrity after the handshake. TLS does not make application authorization or server code secure.",
+        "useCase": "Use handshake diagnostics when TCP succeeds but clients fail before any HTTP status is returned."
+      },
+      {
+        "heading": "PKI binds names to public keys",
+        "text": "A server certificate contains a public key, identity names, validity window, issuer, and extensions, all signed by a CA. The server protects the matching private key. A client builds a path to a trusted root, validates signatures and time, and checks that the requested hostname appears in the Subject Alternative Name extension.",
+        "useCase": "Use certificate inspection to diagnose expired chains, missing intermediates, wrong hostnames, and unexpected issuers."
+      },
+      {
+        "heading": "SNI selects the virtual host",
+        "text": "SNI carries the intended hostname early in the TLS handshake so a server hosting many domains on one IP can select the correct certificate and configuration. Modern clients still perform independent hostname validation. Sending the wrong SNI can return a valid certificate for the wrong site.",
+        "useCase": "Use openssl s_client with -servername when testing an ingress, reverse proxy, CDN, or shared load balancer."
+      },
+      {
+        "heading": "DNSSEC authenticates DNS data",
+        "text": "DNSSEC adds signed record sets. RRSIG carries signatures; DNSKEY publishes zone keys; a parent DS record links a child key into the chain of trust. A validating resolver can detect forged or modified signed answers. DNSSEC does not encrypt queries—DoT or DoH addresses transport confidentiality.",
+        "useCase": "Use +dnssec and validating-resolver status when investigating bogus responses, broken delegation, or key rollover."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "A new ingress serves the wrong certificate",
+        "scenario": "The IP is reachable, but clients report a hostname mismatch.",
+        "application": "Test the requested hostname with SNI, inspect SAN values, and confirm the proxy selected the correct virtual host."
+      },
+      {
+        "title": "Internal services need mutual identity",
+        "scenario": "A sensitive service must authenticate both server and workload.",
+        "application": "Use mTLS with managed issuance and rotation; remember that certificate identity still needs authorization policy."
+      },
+      {
+        "title": "A signed zone becomes SERVFAIL",
+        "scenario": "Validating resolvers reject a domain while non-validating queries return data.",
+        "application": "Inspect DS, DNSKEY, and RRSIG continuity and timing before bypassing validation."
+      }
+    ],
+    "labContexts": [
+      "Generating a self-signed certificate creates a controlled trust problem and demonstrates that possession of a private key is separate from client trust.",
+      "Inspection reveals subject, issuer, and validity dates—the first evidence for hostname, chain, and time-related failures.",
+      "The test TLS server proves that the certificate and private key form a usable pair and exposes a real handshake endpoint.",
+      "The expected verification failure confirms the client is enforcing trust rather than silently accepting an unknown issuer.",
+      "--cacert adds one explicit trust anchor for the test; unlike -k, it keeps certificate and hostname verification active.",
+      "A DNSSEC-aware query exposes signed records and flags, connecting certificate trust to the separate DNS chain-of-trust model."
+    ]
+  },
+  "security": {
+    "objectives": [
+      "Apply confidentiality, integrity, availability, least privilege, and defense in depth to network design.",
+      "Explain default-deny and stateful firewall behavior.",
+      "Reduce service exposure through bind addresses, SSH key management, VPN design, and nftables policy.",
+      "Create and inspect an isolated default-drop firewall without losing administrative access."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Security starts with assets and trust boundaries",
+        "text": "Confidentiality limits disclosure, integrity limits unauthorized change, and availability keeps required service accessible. A threat model identifies assets, actors, entry points, dependencies, and trust boundaries. Least privilege grants only the identity, network path, protocol, and duration required. Defense in depth combines independent preventive, detective, and recovery controls.",
+        "useCase": "Use these principles to review whether a database needs Internet exposure or only a specific application identity from one segment."
+      },
+      {
+        "heading": "Default deny makes intent explicit",
+        "text": "A default-deny policy drops traffic unless a rule permits it. A stateful firewall tracks flows so return packets for an allowed connection can be accepted as ESTABLISHED or RELATED. Rule order, direction, interface, protocol, addresses, ports, and connection state all affect the decision. nftables is the modern Linux framework replacing separate iptables-family front ends.",
+        "useCase": "Use stateful default-deny at workload and network boundaries to reduce attack surface while preserving expected return traffic."
+      },
+      {
+        "heading": "Bind scope and remote access matter",
+        "text": "A service on 127.0.0.1 is host-local; one on 0.0.0.0 accepts traffic arriving on any IPv4 interface, subject to policy. SSH public-key authentication is generally safer for automation when keys are managed, scoped, rotated, and protected. A VPN encrypts traffic between peers but does not automatically authorize every application reachable through it.",
+        "useCase": "Use a bastion, managed identities, narrow routes, and application authorization instead of treating VPN membership as universal trust."
+      },
+      {
+        "heading": "Logs must support response without leaking secrets",
+        "text": "Record authentication outcomes, policy decisions, actor or workload identity, source and destination context, timestamps, request IDs, and change history. Do not log passwords, private keys, tokens, or unnecessary payloads. Centralize, protect, retain, and time-synchronize security logs so an investigator can correlate events.",
+        "useCase": "Use structured firewall and SSH logs to explain a denied connection without creating a second credential exposure."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Protecting a database tier",
+        "scenario": "Only application workloads should reach TCP 5432.",
+        "application": "Default deny, allow the precise source segment or workload identity, log denials at a controlled rate, and test both permitted and prohibited paths."
+      },
+      {
+        "title": "Admin access through a bastion",
+        "scenario": "Operators manage private hosts from outside the environment.",
+        "application": "Require managed SSH keys or short-lived certificates, MFA at the entry point, narrow destination access, session logging, and a tested recovery path."
+      },
+      {
+        "title": "Containing a compromised host",
+        "scenario": "Detection indicates active command-and-control traffic.",
+        "application": "Apply a reversible isolation rule that preserves required investigation and management channels, then verify the effective ruleset."
+      }
+    ],
+    "labContexts": [
+      "An isolated namespace prevents the practice firewall from affecting the host's real management and application traffic.",
+      "An inet nftables table can contain rules that apply consistently to both IPv4 and IPv6 families.",
+      "A base input chain with policy drop establishes the secure default; hook and priority determine where it sees packets.",
+      "The conntrack rule permits return traffic for allowed flows, avoiding separate reverse-direction rules for each client connection.",
+      "Allowing loopback preserves local inter-process communication that many services require even under a strict inbound policy.",
+      "Listing the effective ruleset is the verification step: configuration intent is not complete until the active policy is inspected."
+    ]
+  },
+  "troubleshooting": {
+    "objectives": [
+      "Capture symptoms, scope, timing, and recent changes before modifying configuration.",
+      "Use a repeatable link-to-application diagnostic ladder.",
+      "Interpret negative and positive evidence without overclaiming what a single tool proves.",
+      "Apply one reversible change at a time and verify both recovery and root cause."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Start with a falsifiable problem statement",
+        "text": "Record who or what is affected, source and destination, protocol, timing, error text, frequency, recent change, and expected behavior. Separate one client from all clients, one name from every name, and local from remote access. Preserve baseline commands and timestamps before changing state.",
+        "useCase": "A precise statement such as 'remote clients time out to 10.0.4.8:8080 while local curl succeeds' immediately narrows the test plan."
+      },
+      {
+        "heading": "Use the diagnostic ladder",
+        "text": "Check ip -br link and addr, then ip route get, neighbor state, DNS with dig or getent, the listener with ss, transport with nc or curl, TLS with curl -v or openssl, and packet flow with tcpdump. traceroute exposes Layer-3 hop behavior, but filtered probes and asymmetric routing limit its conclusions.",
+        "useCase": "Move upward only after the lower-layer evidence needed for the failing path is understood."
+      },
+      {
+        "heading": "A failed test rarely proves one cause",
+        "text": "Failed ping means ICMP reachability is unproven; the destination may still serve TCP. A successful DNS answer does not prove TCP or TLS. A listening socket does not prove remote routing or policy. A packet capture showing SYN arrival without SYN-ACK focuses attention on the host listener, firewall, or return path.",
+        "useCase": "Use multiple independent observations to distinguish correlation from cause."
+      },
+      {
+        "heading": "Change control is part of troubleshooting",
+        "text": "Form a hypothesis, choose the smallest reversible test, record the result, and change one variable. Keep rollback access before modifying routes or firewalls. After recovery, verify from the original client, check monitoring, document root cause, and remove temporary diagnostic exposure.",
+        "useCase": "This method prevents an incident from becoming an undocumented bundle of changes that cannot be reproduced or reversed."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Local health succeeds, remote health fails",
+        "scenario": "curl to loopback works and ss shows 127.0.0.1:8080.",
+        "application": "The application is locally healthy but bound only to loopback. Change the managed bind configuration, restart safely, and then verify firewall and remote access."
+      },
+      {
+        "title": "One hostname fails",
+        "scenario": "Other domains resolve and connect normally.",
+        "application": "Compare authoritative data, recursive answers, search domains, cache, and the system NSS path rather than resetting the whole interface."
+      },
+      {
+        "title": "Intermittent latency",
+        "scenario": "Requests occasionally stall with no consistent HTTP error.",
+        "application": "Correlate timestamps across client, server, packet capture, interface counters, retransmissions, and dependency latency."
+      }
+    ],
+    "labContexts": [
+      "Address evidence checks whether the host has the expected interface identity and prefix before route or service analysis.",
+      "The route table and route lookup reveal the selected next hop and output interface for the failing destination.",
+      "DNS testing separates name resolution from transport reachability and distinguishes direct DNS behavior from system NSS behavior.",
+      "The listener check proves whether a process owns port 8080 and whether its bind address permits only local or also remote connections.",
+      "A loopback health request isolates application health from external routing and host-ingress policy.",
+      "Changing the managed bind address and restarting tests one hypothesis; remote re-verification and rollback planning complete the fix."
+    ]
+  },
+  "segmentation": {
+    "objectives": [
+      "Explain how VLANs create logical Layer-2 broadcast domains and how 802.1Q trunks carry them.",
+      "Configure PVID, untagged membership, and VLAN filtering on a Linux bridge.",
+      "Distinguish VLANs, network namespaces, VRFs, routing, and microsegmentation.",
+      "Plan segmentation from observed dependencies with explicit enforcement, monitoring, and rollback."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "VLANs partition a Layer-2 topology",
+        "text": "Each VLAN is a separate broadcast domain. An access port normally carries one VLAN untagged; its PVID classifies incoming untagged frames. An 802.1Q trunk adds a VLAN tag so one physical or virtual link can carry multiple VLANs. Hosts in different VLANs need Layer-3 routing even if they share the same switch.",
+        "useCase": "Use VLANs to separate users, servers, management, guest, or lab traffic while sharing switching infrastructure."
+      },
+      {
+        "heading": "Linux bridges can enforce VLAN membership",
+        "text": "A Linux bridge acts as a software switch. With vlan_filtering enabled, each bridge port has an allowed VLAN table plus tagging behavior. pvid assigns untagged ingress; untagged removes the tag on egress. bridge vlan show displays the effective membership. Without filtering, attaching ports to one bridge does not enforce VLAN separation.",
+        "useCase": "Use a VLAN-aware bridge for virtual machines, container hosts, hypervisors, and test topologies that need multiple isolated segments."
+      },
+      {
+        "heading": "Namespaces and VRFs isolate different state",
+        "text": "A network namespace has its own interfaces, routes, neighbors, firewall rules, and sockets. A VRF provides a separate routing table/domain on one system while sharing more of the host environment. VLANs isolate Layer 2; routing and firewall policy control communication between segments.",
+        "useCase": "Use namespaces for container-like isolation and VRFs for overlapping routes, tenant networks, or separate management and production routing domains."
+      },
+      {
+        "heading": "Microsegmentation is policy, not just topology",
+        "text": "Microsegmentation applies fine-grained allow rules around workloads or small application groups, often using identity and workload metadata in addition to IP. Before enforcement, map actual east-west flows, owners, dependencies, DNS/NTP/management needs, and failure behavior. Start observable, test exceptions, preserve rollback, then tighten.",
+        "useCase": "Use microsegmentation to limit lateral movement after an application host is compromised."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Guest and corporate Wi-Fi",
+        "scenario": "Both networks share access points and switches but require different trust.",
+        "application": "Assign separate VLANs, route through a policy boundary, and deny guest access to internal services while preserving DNS and Internet egress."
+      },
+      {
+        "title": "Multi-tenant virtualization",
+        "scenario": "VMs from several tenants share hypervisor uplinks.",
+        "application": "Use VLAN-aware bridges or overlays, validate trunk membership, separate routing domains where needed, and enforce tenant policy."
+      },
+      {
+        "title": "Limiting application lateral movement",
+        "scenario": "Only frontend-to-API and API-to-database flows are expected.",
+        "application": "Observe dependencies, allow those exact paths plus required infrastructure services, alert on deviations, then enforce."
+      }
+    ],
+    "labContexts": [
+      "The bridge creates the software switching domain to which workload-facing ports can be attached.",
+      "VLAN filtering turns the bridge from a flat switch into one that enforces per-port VLAN membership and tag handling.",
+      "A veth pair models the cable between a host endpoint and a switch access port.",
+      "Attaching sw10 to the bridge makes it a bridge port whose forwarding and VLAN behavior can be configured.",
+      "VLAN 10 with pvid and untagged models a conventional access port: untagged host frames enter VLAN 10 and leave untagged.",
+      "bridge vlan show verifies effective membership and flags, catching configuration that was accepted syntactically but does not match intent."
+    ]
+  },
+  "delivery": {
+    "objectives": [
+      "Distinguish forward proxies, reverse proxies, and Layer-4 versus Layer-7 load balancing.",
+      "Design readiness, liveness, failure detection, and resilient endpoint pools.",
+      "Explain how routing and peer configuration determine VPN traffic and why VPN access still needs authorization.",
+      "Apply zero-trust principles and safe forwarded-header handling at a proxy boundary."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Proxy direction determines whom it represents",
+        "text": "A forward proxy represents clients making outbound requests and can enforce egress policy, filtering, or caching. A reverse proxy represents origin services to incoming clients and can terminate TLS, route requests, add security controls, cache responses, and balance load. The proxy becomes a trust boundary with its own logs, identity, and failure modes.",
+        "useCase": "Use a forward proxy for controlled enterprise egress and a reverse proxy for an application ingress or API gateway."
+      },
+      {
+        "heading": "Layer 4 and Layer 7 see different information",
+        "text": "A Layer-4 balancer routes using addresses, ports, and connection state without understanding HTTP semantics. A Layer-7 HTTP balancer can route by Host, URL path, method, or headers, and can alter requests. Readiness decides whether an endpoint should receive new traffic; liveness decides whether the process should be restarted. A live process can still be unready.",
+        "useCase": "Use readiness to drain a warming or dependency-degraded instance without triggering unnecessary restart loops."
+      },
+      {
+        "heading": "VPN reachability is routing plus cryptographic peers",
+        "text": "A VPN creates an encrypted path between authenticated peers. Routes or policy rules decide which destination prefixes enter the tunnel. WireGuard AllowedIPs participates in both peer selection and route design. A successful handshake proves recent peer communication, not application health or authorization behind the peer.",
+        "useCase": "Use split-tunnel routes for required private prefixes and enforce service-level authorization after traffic exits the tunnel."
+      },
+      {
+        "heading": "Zero trust removes location-based implicit trust",
+        "text": "Zero trust evaluates identity, device or workload posture, requested resource, context, and policy for each access decision. A reverse proxy must overwrite or accept forwarded client headers only from known proxy hops; otherwise a client can spoof source identity. Multiple healthy endpoints and tested failure detection improve availability.",
+        "useCase": "Use an identity-aware proxy for administrative applications while keeping origin services unreachable directly."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Blue-green deployment",
+        "scenario": "A new application version must receive traffic gradually.",
+        "application": "Use Layer-7 routing and readiness checks, observe errors and latency, shift traffic in stages, and retain a tested rollback pool."
+      },
+      {
+        "title": "Remote engineering access",
+        "scenario": "Developers need selected private services, not the entire network.",
+        "application": "Advertise narrow VPN routes, authenticate users and devices, enforce application authorization, and record access decisions."
+      },
+      {
+        "title": "Protecting origin services",
+        "scenario": "Only the reverse proxy should reach the application instances.",
+        "application": "Restrict origin ingress to proxy identities or networks, validate forwarded headers, terminate TLS deliberately, and monitor direct-access attempts."
+      }
+    ],
+    "labContexts": [
+      "Direct origin health separates backend failure from reverse-proxy configuration or listener problems.",
+      "Inspecting proxy_pass proves which upstream address and port the proxy will actually contact.",
+      "nginx -t validates syntax and referenced configuration before a reload can affect production traffic.",
+      "The proxied request tests listener, routing rule, upstream connection, response propagation, and HTTP status through the intended client path.",
+      "ip route get proves whether the private destination follows the expected tunnel interface instead of relying on an assumed VPN state.",
+      "wg show exposes peer, endpoint, latest handshake, and transfer counters; combine it with route and application tests because handshake alone is insufficient."
+    ]
+  },
+  "detection": {
+    "objectives": [
+      "Compare full packet capture, flow data, protocol logs, and alert records.",
+      "Distinguish passive IDS from inline IPS and plan safe signature promotion.",
+      "Interpret Zeek logs and Suricata EVE JSON while accounting for false positives and attribution limits.",
+      "Preserve authorized network evidence with synchronized time, hashes, access control, and documented scope."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Evidence sources trade detail for scale",
+        "text": "Full packet capture preserves headers and payload bytes but consumes storage and may contain sensitive data. Flow records summarize endpoints, ports, bytes, packets, and timing. Zeek produces protocol-aware transaction logs. Suricata EVE JSON records structured alerts and events. Logs from DNS, proxies, endpoints, identity, and cloud controls add attribution context.",
+        "useCase": "Use flow for broad hunting, Zeek for protocol behavior, Suricata for signature evidence, and packet capture for the deepest authorized reconstruction."
+      },
+      {
+        "heading": "IDS observes; IPS can enforce inline",
+        "text": "An IDS analyzes traffic and alerts without being the forwarding decision point. An IPS runs inline and can drop matching traffic, so false positives and performance defects can cause outages. Before promoting a signature from alert to drop, measure accuracy, identify expected exceptions, test capacity, stage rollout, and prepare rollback.",
+        "useCase": "Run a new exploit signature in alert mode against representative traffic before enforcing it at an Internet edge."
+      },
+      {
+        "heading": "Attribution requires correlation",
+        "text": "One source IP or port-scan alert rarely identifies a person or compromised host. NAT, proxies, shared systems, cloud address reuse, spoofing, and authorized scanners complicate attribution. Correlate synchronized timestamps, DHCP or cloud assignment, identity, endpoint telemetry, DNS, proxy logs, and repeated behavior. A false positive is benign activity classified as malicious.",
+        "useCase": "Use connection history and asset ownership before isolating a host based on a single alert."
+      },
+      {
+        "heading": "Encryption hides content, not every signal",
+        "text": "TLS usually hides application payloads from passive sensors, but endpoints, timing, duration, sizes, direction, TCP behavior, and selected handshake metadata may remain visible. Decryption introduces privacy, key, performance, and governance costs. Capture only authorized scope, minimize retention, restrict access, and hash preserved evidence.",
+        "useCase": "Detect unusual encrypted beaconing by combining periodic flow patterns, DNS behavior, destination reputation, and endpoint evidence."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Investigating a port scan",
+        "scenario": "Suricata flags many destination ports from one address.",
+        "application": "Correlate Zeek connections, asset role, NAT or proxy records, scan authorization, timing, and whether any sessions or follow-on actions succeeded."
+      },
+      {
+        "title": "Possible data exfiltration",
+        "scenario": "One workload sends an unusual volume to a new external destination.",
+        "application": "Use flow totals, protocol logs, DNS history, endpoint process data, and a scoped packet capture where authorized."
+      },
+      {
+        "title": "Promoting a blocking rule",
+        "scenario": "An alert signature appears accurate in testing.",
+        "application": "Measure false positives and performance, define exceptions and rollback, stage the IPS change, and monitor availability."
+      }
+    ],
+    "labContexts": [
+      "Reading the pcap without name resolution preserves literal addresses and gives a quick packet-level timeline without generating new DNS traffic.",
+      "Zeek converts packet bytes into structured protocol and connection logs that are easier to correlate at scale.",
+      "Selected conn.log fields reveal source, destination, port, and detected service for each conversation.",
+      "jq extracts only Suricata alert objects and the fields needed to compare a signature with other evidence.",
+      "Searching Zeek by the suspicious address tests whether the alert is isolated or part of a broader sequence of connections.",
+      "A SHA-256 digest provides an integrity reference so later analysis can show whether the evidence file changed."
+    ]
+  },
+  "devsecops": {
+    "objectives": [
+      "Map secret scanning, SAST, SCA, IaC scanning, image scanning, DAST, and policy testing to distinct failure classes.",
+      "Respond correctly to a committed secret and prefer short-lived workload identity.",
+      "Use SBOMs and policy-as-code to create reviewable, reproducible release evidence.",
+      "Design risk-based release gates with ownership, remediation, exceptions, and audit history."
+    ],
+    "technicalDetails": [
+      {
+        "heading": "Security tests cover different surfaces",
+        "text": "Secret scanning searches content and history for credentials. SAST analyzes source patterns and data flow. SCA identifies third-party components and known risks. IaC scanning checks declared infrastructure such as open security groups. Image scanning checks OS and language packages. DAST sends requests to a running authorized target. No single tool replaces the others.",
+        "useCase": "Use fast secret, SAST, SCA, and IaC checks on pull requests, then image and DAST checks on built, deployed candidates."
+      },
+      {
+        "heading": "A leaked secret must be revoked",
+        "text": "Deleting a credential from the latest commit does not remove it from history, forks, caches, logs, or clones. Treat it as compromised: revoke or rotate it, review access logs, remove or rewrite history where appropriate, and prevent recurrence. Prefer short-lived, scoped workload identity issued from verified runtime context.",
+        "useCase": "Use federation from CI to a cloud provider instead of storing a long-lived deployment key in repository secrets."
+      },
+      {
+        "heading": "SBOM and SCA answer related questions",
+        "text": "An SBOM inventories components, versions, and relationships in a build. SCA compares that inventory with vulnerability and license intelligence. Findings still require reachability, exploitability, exposure, compensating controls, and fix availability to prioritize risk. Preserve provenance so the evidence maps to the exact artifact.",
+        "useCase": "Use a CycloneDX SBOM to identify every deployed image containing a newly disclosed vulnerable library."
+      },
+      {
+        "heading": "A release gate is an operational policy",
+        "text": "A useful gate defines trustworthy inputs, severity and confidence thresholds, scope, an owner, remediation expectations, an expiring exception path, and an audit trail. Network policy as code makes firewall, security-group, gateway, and workload policy reviewable, testable, versioned, and reproducible. Conftest can evaluate declarative files against organizational policy.",
+        "useCase": "Block unrestricted SSH ingress while allowing a documented, time-bound emergency exception approved by the correct owner."
+      }
+    ],
+    "useCases": [
+      {
+        "title": "Pull-request security feedback",
+        "scenario": "A developer changes application code and Terraform together.",
+        "application": "Run secret, SAST, SCA, and IaC checks early; annotate actionable findings and keep expensive environment-dependent tests for later stages."
+      },
+      {
+        "title": "Container release decision",
+        "scenario": "An image contains a critical package vulnerability and the deployment exposes a management port.",
+        "application": "Correlate image, SBOM, IaC, runtime exposure, and policy evidence; block or require an explicit expiring exception."
+      },
+      {
+        "title": "Detecting configuration drift",
+        "scenario": "The reviewed network policy differs from the effective environment.",
+        "application": "Compare deployed state with versioned policy, alert on drift, and reconcile through the controlled delivery path rather than manual changes."
+      }
+    ],
+    "labContexts": [
+      "gitleaks examines the working tree and history for credential patterns; any real finding triggers rotation and investigation, not merely deletion.",
+      "Trivy image inspects the built artifact's OS and language packages so the result corresponds to what will actually run.",
+      "Trivy config checks declarative infrastructure for exposure such as unrestricted SSH before that policy reaches a cloud control plane.",
+      "Syft creates a CycloneDX SBOM that can be stored with the artifact and queried later when new component risks emerge.",
+      "The ZAP baseline sends dynamic requests to an explicitly authorized running target and produces application-behavior evidence that static tools cannot.",
+      "Conftest evaluates deployment files against release policy, turning the combined evidence into a reproducible allow, deny, or exception decision."
+    ]
+  }
+}
